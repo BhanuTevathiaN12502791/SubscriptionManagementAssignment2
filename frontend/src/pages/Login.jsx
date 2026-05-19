@@ -79,7 +79,7 @@ const Login = () => {
             Welcome back
           </h2>
           <p className="text-slate-500 mt-2">
-            Login to manage your subscriptions and plans.
+            Securely manage your subscriptions and plans.
           </p>
         </div>
 

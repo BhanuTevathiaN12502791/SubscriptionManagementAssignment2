@@ -14,12 +14,33 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString();
 };
 
+const getDaysUntilRenewal = (sub) => {
+  if (!sub.startDate) return null;
+
+  const startDate = new Date(sub.renewedAt || sub.startDate);
+  const nextRenewalDate = new Date(startDate);
+
+  const duration = sub.plan?.duration;
+  if (duration === "weekly") {
+    nextRenewalDate.setDate(startDate.getDate() + 7);
+  } else if (duration === "yearly") {
+    nextRenewalDate.setFullYear(startDate.getFullYear() + 1);
+  } else {
+    nextRenewalDate.setDate(startDate.getDate() + 30);
+  }
+
+  const today = new Date();
+  const diffTime = nextRenewalDate - today;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState("");
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
+  const [renewalAlerts, setRenewalAlerts] = useState([]);
 
   const fetchDashboard = async () => {
     const response = await axiosInstance.get("/api/dashboard");
@@ -31,13 +52,21 @@ const Subscriptions = () => {
   const fetchSubscriptions = async () => {
     const response = await axiosInstance.get("/api/subscriptions");
     const data = unwrap(response);
-    setSubscriptions(Array.isArray(data) ? data : []);
+    const arr = Array.isArray(data) ? data : [];
+    setSubscriptions(arr);
+    return arr;
   };
 
   const loadPage = useCallback(async () => {
     try {
       setLoading(true);
-      await fetchDashboard();
+      const [, arr] = await Promise.all([fetchPlans(), fetchSubscriptions()]);
+
+      const alerts = arr.filter((sub) => {
+        const days = getDaysUntilRenewal(sub);
+        return sub.status === "active" && days !== null && days <= 7 && days >= 0;
+      });
+      setRenewalAlerts(alerts);
     } catch (error) {
       alert(
         error.response?.data?.message || "Failed to load subscription data.",
@@ -133,6 +162,31 @@ const Subscriptions = () => {
 
   return (
     <div className="space-y-8 fade-in">
+
+      {renewalAlerts.length > 0 && (
+        <div className="rounded-2xl bg-red-50 border border-red-200 px-5 py-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="font-black text-red-700 text-sm">⚠️ Renewal Reminder</p>
+            <ul className="mt-1 space-y-1">
+              {renewalAlerts.map((sub) => {
+                const days = getDaysUntilRenewal(sub);
+                return (
+                  <li key={sub._id} className="text-sm text-red-600 font-bold">
+                    {sub.plan?.name || "Unknown Plan"} — renews in {days} day{days === 1 ? "" : "s"}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <button
+            onClick={() => setRenewalAlerts([])}
+            className="text-red-400 hover:text-red-600 font-black text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <section className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6 items-stretch">
         <div className="glass-panel rounded-[2rem] p-6 sm:p-8">
           <p className="badge badge-blue mb-5">User dashboard</p>
@@ -291,6 +345,28 @@ const Subscriptions = () => {
                   <p className="text-sm text-slate-500 mt-1">
                     ${sub.plan?.price ?? "-"} / {sub.plan?.duration || "-"}
                   </p>
+
+                  {(() => {
+                    const daysLeft = getDaysUntilRenewal(sub);
+                    if (daysLeft === null) return null;
+
+                    const isUrgent = daysLeft <= 7 && daysLeft >= 0;
+
+                    return (
+                      <div
+                        className={`rounded-2xl px-4 py-2 text-sm font-bold mt-3 ${
+                          isUrgent
+                            ? "bg-red-50 border border-red-200 text-red-700"
+                            : "bg-yellow-50 border border-yellow-200 text-yellow-800"
+                        }`}
+                      >
+                        {daysLeft < 0
+                          ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"}`
+                          : `Renewal in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`
+                        }
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <span className={statusClass(sub.status)}>
