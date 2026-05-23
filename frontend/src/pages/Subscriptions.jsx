@@ -60,7 +60,7 @@ const Subscriptions = () => {
   const loadPage = useCallback(async () => {
     try {
       setLoading(true);
-      const [, arr] = await Promise.all([fetchPlans(), fetchSubscriptions()]);
+      const [, arr] = await fetchSubscriptions();
 
       const alerts = arr.filter((sub) => {
         const days = getDaysUntilRenewal(sub);
