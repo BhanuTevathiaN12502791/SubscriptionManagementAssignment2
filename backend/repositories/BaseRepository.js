@@ -31,7 +31,7 @@ class BaseRepository {
   }
 
   async updateById(id, data) {
-    return this.model.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+    return this.model.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true });
   }
 
   async deleteById(id) {

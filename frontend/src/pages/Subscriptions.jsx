@@ -45,8 +45,10 @@ const Subscriptions = () => {
   const fetchDashboard = async () => {
     const response = await axiosInstance.get("/api/dashboard");
     const data = unwrap(response);
+    const subsArr = Array.isArray(data.subscriptions) ? data.subscriptions : [];
     setPlans(Array.isArray(data.availablePlans) ? data.availablePlans : []);
-    setSubscriptions(Array.isArray(data.subscriptions) ? data.subscriptions : []);
+    setSubscriptions(subsArr);
+    return subsArr;
   };
 
   const fetchSubscriptions = async () => {
@@ -60,7 +62,7 @@ const Subscriptions = () => {
   const loadPage = useCallback(async () => {
     try {
       setLoading(true);
-      const [, arr] = await fetchSubscriptions();
+      const arr = await fetchDashboard();
 
       const alerts = arr.filter((sub) => {
         const days = getDaysUntilRenewal(sub);
