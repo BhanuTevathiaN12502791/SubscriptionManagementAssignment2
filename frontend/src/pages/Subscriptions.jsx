@@ -217,7 +217,7 @@ const Subscriptions = () => {
 
             <div className="metric-card">
               <p className="text-3xl font-black text-slate-950">
-                ${totalMonthlyValue}
+                ${totalMonthlyValue.toFixed(2)}
               </p>
               <p className="text-sm font-bold text-slate-500 mt-1">
                 Active value
