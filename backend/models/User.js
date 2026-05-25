@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  monthlyBudget: { type: Number, default: 0, min: 0 },
 });
 
 userSchema.pre("save", async function (next) {

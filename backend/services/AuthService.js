@@ -48,6 +48,7 @@ class AuthService {
       email: updates.email,
       university: updates.university,
       address: updates.address,
+      monthlyBudget: updates.monthlyBudget,
     };
     Object.keys(allowed).forEach((key) => allowed[key] === undefined && delete allowed[key]);
 

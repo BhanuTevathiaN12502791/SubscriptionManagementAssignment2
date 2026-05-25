@@ -41,6 +41,8 @@ const Subscriptions = () => {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState("");
   const [renewalAlerts, setRenewalAlerts] = useState([]);
+  const [budget, setBudget] = useState(0);
+  const [budgetInput, setBudgetInput] = useState("");
 
   const fetchDashboard = async () => {
     const response = await axiosInstance.get("/api/dashboard");
@@ -48,6 +50,9 @@ const Subscriptions = () => {
     const subsArr = Array.isArray(data.subscriptions) ? data.subscriptions : [];
     setPlans(Array.isArray(data.availablePlans) ? data.availablePlans : []);
     setSubscriptions(subsArr);
+    if (data.profile?.monthlyBudget !== undefined) {
+      setBudget(Number(data.profile.monthlyBudget));
+    }
     return subsArr;
   };
 
@@ -100,10 +105,30 @@ const Subscriptions = () => {
     [subscriptions],
   );
 
+  const isOverBudget = useMemo(
+    () => budget > 0 && totalMonthlyValue > budget,
+    [budget, totalMonthlyValue],
+  );
+
   const selectedPlanDetails = useMemo(
     () => plans.find((plan) => plan._id === selectedPlan),
     [plans, selectedPlan],
   );
+
+  const handleSetBudget = async () => {
+    const amount = Number(budgetInput);
+    if (!budgetInput.trim() || isNaN(amount) || amount < 0) {
+      alert("Please enter a valid budget amount.");
+      return;
+    }
+    try {
+      await axiosInstance.put("/api/auth/profile", { monthlyBudget: amount });
+      setBudget(amount);
+      setBudgetInput("");
+    } catch (error) {
+      alert(error.response?.data?.message || "Failed to save budget.");
+    }
+  };
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
@@ -165,6 +190,17 @@ const Subscriptions = () => {
   return (
     <div className="space-y-8 fade-in">
 
+      {isOverBudget && (
+        <div className="rounded-2xl bg-orange-50 border border-orange-200 px-5 py-4 flex items-start gap-4">
+          <div>
+            <p className="font-black text-orange-700 text-sm">⚠️ Budget Limit Exceeded</p>
+            <p className="mt-1 text-sm text-orange-600 font-bold">
+              Your active subscriptions total ${totalMonthlyValue.toFixed(2)}, which is ${(totalMonthlyValue - budget).toFixed(2)} over your ${budget.toFixed(2)} monthly budget.
+            </p>
+          </div>
+        </div>
+      )}
+
       {renewalAlerts.length > 0 && (
         <div className="rounded-2xl bg-red-50 border border-red-200 px-5 py-4 flex items-start justify-between gap-4">
           <div>
@@ -223,6 +259,48 @@ const Subscriptions = () => {
                 Active value
               </p>
             </div>
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-white/40">
+            <p className="text-sm font-black text-slate-700 mb-3">Monthly Budget</p>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={budget > 0 ? `$${budget.toFixed(2)} set` : "Enter amount..."}
+                value={budgetInput}
+                onChange={(e) => setBudgetInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSetBudget()}
+                className="input-field text-sm py-2"
+              />
+              <button
+                onClick={handleSetBudget}
+                className="secondary-button px-4 py-2 text-sm whitespace-nowrap"
+              >
+                {budget > 0 ? "Update" : "Set"}
+              </button>
+            </div>
+
+            {budget > 0 && (
+              <div className="mt-3 space-y-1">
+                <div className="flex justify-between text-xs font-bold text-slate-500">
+                  <span>${totalMonthlyValue.toFixed(2)} spent</span>
+                  <span>${budget.toFixed(2)} limit</span>
+                </div>
+                <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${isOverBudget ? "bg-orange-500" : "bg-indigo-500"}`}
+                    style={{ width: `${Math.min((totalMonthlyValue / budget) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className={`text-xs font-bold ${isOverBudget ? "text-orange-600" : "text-slate-400"}`}>
+                  {isOverBudget
+                    ? `${((totalMonthlyValue / budget) * 100).toFixed(0)}% — $${(totalMonthlyValue - budget).toFixed(2)} over limit`
+                    : `${((totalMonthlyValue / budget) * 100).toFixed(0)}% of budget used`}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
